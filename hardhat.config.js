@@ -39,7 +39,7 @@ module.exports = {
       live: true,
       saveDeployments: true,
       tags: ["production"],
-      gasPrice: 48000000000,
+      gasPrice: 69000000000,
     },
     gnosis: {
       url: `https://rpc.gnosischain.com/`,

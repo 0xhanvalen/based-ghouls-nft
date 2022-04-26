@@ -24,19 +24,19 @@ contract BasedGhoulsv2 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUp
 
     bytes32 public MERKLE_ROOT;
 
-    // function initialize() initializer public {
-    //     __ERC721_init("Based Ghouls", "GHLS");
-    //     maxGhouls = 6666;
-    //     baseURI = "https://ghlstest.s3.amazonaws.com/json/";
-    //     unrevealedURI = "https://ghlsprereveal.s3.amazonaws.com/json/Shallow_Grave.json";
-    //     MERKLE_ROOT = 0x43462521f09038fad70d2515b4dd7ed043b8e5802b16b42885cb8887d14b5d48;
-    //     lastTokenRevealed = 0;
-    //     isMintable = false;
-    //     totalSupply = 0;
-    //     _setDefaultRoyalty(0x475dcAA08A69fA462790F42DB4D3bbA1563cb474, 690);
-    //     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    //     grantRole(DEFAULT_ADMIN_ROLE, 0x98CCf605c43A0bF9D6795C3cf3b5fEd836330511);
-    // }
+    function initialize() initializer public {
+        __ERC721_init("Based Ghouls", "GHLS");
+        maxGhouls = 6666;
+        baseURI = "https://ghlstest.s3.amazonaws.com/json/";
+        unrevealedURI = "https://ghlsprereveal.s3.amazonaws.com/json/Shallow_Grave.json";
+        MERKLE_ROOT = 0x43462521f09038fad70d2515b4dd7ed043b8e5802b16b42885cb8887d14b5d48;
+        lastTokenRevealed = 0;
+        isMintable = false;
+        totalSupply = 0;
+        _setDefaultRoyalty(0x475dcAA08A69fA462790F42DB4D3bbA1563cb474, 690);
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        grantRole(DEFAULT_ADMIN_ROLE, 0x98CCf605c43A0bF9D6795C3cf3b5fEd836330511);
+    }
 
     function updateBaseURI(string calldata _newURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
         baseURI = _newURI;
@@ -90,17 +90,34 @@ contract BasedGhoulsv2 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUp
             super.supportsInterface(interfaceId);
     }
 
-        function initialize() initializer public {
-        __ERC721_init("Based Ghouls", "GHLS");
-        maxGhouls = 6666;
-        baseURI = "https://ghlstest.s3.amazonaws.com/json/";
-        unrevealedURI = "https://ghlsprereveal.s3.amazonaws.com/json/Shallow_Grave.json";
-        MERKLE_ROOT = 0x43462521f09038fad70d2515b4dd7ed043b8e5802b16b42885cb8887d14b5d48;
-        lastTokenRevealed = 0;
-        isMintable = false;
-        totalSupply = 10;
-        _setDefaultRoyalty(0x475dcAA08A69fA462790F42DB4D3bbA1563cb474, 690);
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        grantRole(DEFAULT_ADMIN_ROLE, 0x98CCf605c43A0bF9D6795C3cf3b5fEd836330511);
+    bool public isHordeReleased;
+
+    function insertExpansionPack(bytes32 _newMerkle) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bytes32) {
+        MERKLE_ROOT = _newMerkle;   
+        return MERKLE_ROOT;
+    }
+
+    function releaseTheHorde (bool _isHordeReleased) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+        isHordeReleased = _isHordeReleased;
+        return isHordeReleased;
+    }
+
+
+    function summon() public {
+        require(isMintable, "NYM");
+        require(totalSupply < maxGhouls, "OOG");
+        require(isHordeReleased, "HNR");
+        require(tx.origin == msg.sender, "NSCM");
+        address minter = msg.sender;
+        totalSupply = totalSupply + 1;
+        ownedNFTs[minter].push(totalSupply - 1);
+        _mint(minter, totalSupply - 1);
+        if(totalSupply >= (lastTokenRevealed + REVEAL_BATCH_SIZE)) {
+            uint256 seed;
+            unchecked {
+                seed = uint256(blockhash(block.number - 69)) * uint256(block.timestamp % 69);
+            }
+            setBatchSeed(seed);
+        }
     }
 }
