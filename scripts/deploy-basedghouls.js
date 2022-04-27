@@ -1,14 +1,14 @@
 const { ethers, upgrades } = require('hardhat');
 
-async function main () {
-    const ExampleToken = await ethers.getContractFactory('ExampleContract');
-    console.log('Deploying ExampleToken...');
-    const exmpl = await upgrades.deployProxy(ExampleToken);
-    await exmpl.deployed();
-    console.log('exmpl deployed to:', exmpl.address);
-  }
+// async function main () {
+//     const ExampleToken = await ethers.getContractFactory('ExampleContract');
+//     console.log('Deploying ExampleToken...');
+//     const exmpl = await upgrades.deployProxy(ExampleToken);
+//     await exmpl.deployed();
+//     console.log('exmpl deployed to:', exmpl.address);
+//   }
   
-  main();
+//   main();
 
   async function main () {
     const BasedGhouls = await ethers.getContractFactory('BasedGhouls');

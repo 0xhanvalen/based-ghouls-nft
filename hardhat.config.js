@@ -18,6 +18,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 const privateKey = process.env.DEVWALLET;
 const url = process.env.INFURA_URL;
+const rinkebyURL = process.env.INFURA_RINKEBY_URL;
 const etherScan = process.env.ETHERSCAN;
 
 // You need to export an object to set up your config
@@ -40,6 +41,14 @@ module.exports = {
       saveDeployments: true,
       tags: ["production"],
       gasPrice: 69000000000,
+    },
+    rinkeby: {
+      url: `${rinkebyURL}`,
+      accounts: [`${privateKey}`],
+      live: true,
+      saveDeployments: true,
+      tags: ["production"],
+      gasPrice: 80000000000,
     },
     gnosis: {
       url: `https://rpc.gnosischain.com/`,

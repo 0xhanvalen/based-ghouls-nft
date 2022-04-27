@@ -16,7 +16,7 @@ import "./BatchReveal.sol";
 // | '-' `.)'-'|_.' |\_..`--.(|  '--. |  |  ' | 
 // | /`'.  (|  .-.  |.-._)   \|  .--' |  |  / : 
 // | '--'  /|  | |  |\       /|  `---.|  '-'  / 
-// `------' `--' `--' `-----' `------'`------'  
+// `------' `--' `--' `-----' `------'`------'  v1.5
 //
 //                       :::!~!!!!!:.
 //                   .xUHWH!! !!?M88WHX:.
@@ -41,28 +41,35 @@ import "./BatchReveal.sol";
 // :W$B$$$W!     :        ~$$$$$$
 // ~"T$$$R!      :            ~M$$
 // ~#M$$$$$$     ~-~~~-.__.-~~~-~
+// ghouls rebased by @0xhanvalen
 
 contract BasedGhoulsv2 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUpgradeable, BatchReveal {
     using StringsUpgradeable for uint256;
 
-    mapping (address => bool) public allowListRedemption;
-    mapping (address => uint16[]) public ownedNFTs;
+    mapping (address => bool) public EXPANSIONPAKRedemption;
+    mapping (address => bool) public REBASERedemption;
 
     bool public isMintable;
     uint16 public totalSupply;
     uint16 public maxGhouls;
+    uint16 public summonedGhouls;
+    uint16 public rebasedGhouls;
+    uint16 public maxRebasedGhouls;
 
     string public baseURI;
     string public unrevealedURI;
 
-    bytes32 public MERKLE_ROOT;
+    bytes32 public EXPANSION_PAK;
+    bytes32 public SUMMONER_LIST;
 
     function initialize() initializer public {
         __ERC721_init("Based Ghouls", "GHLS");
         maxGhouls = 6666;
+        maxRebasedGhouls = 870;
         baseURI = "https://ghlstest.s3.amazonaws.com/json/";
         unrevealedURI = "https://ghlsprereveal.s3.amazonaws.com/json/Shallow_Grave.json";
-        MERKLE_ROOT = 0x43462521f09038fad70d2515b4dd7ed043b8e5802b16b42885cb8887d14b5d48;
+        EXPANSION_PAK = 0xeaad81dc1fbbd6832eacc1a6445f0220959cd68597f0e7a6b1270b2bb16cf31d;
+        SUMMONER_LIST = 0x96b5de66f7385e7ecc21f6a51bce0f5fa347f5210ac6883f09d88b824b70c806;
         lastTokenRevealed = 0;
         isMintable = false;
         totalSupply = 0;
@@ -84,18 +91,43 @@ contract BasedGhoulsv2 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUp
     }
 
     // u gotta... GOTTA... send the merkleproof in w the mint request. 
-    function mint(bytes32[] calldata _merkleProof) public {
+    function summon(bytes32[] calldata _merkleProof, bool _isRebase) public {
         require(isMintable, "NYM");
         require(totalSupply < maxGhouls, "OOG");
         address minter = msg.sender;
-        require(!allowListRedemption[minter], "TMG");
-        bytes32 leaf = keccak256(abi.encodePacked(minter));
-        bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, MERKLE_ROOT, leaf);
-        require(isLeaf, "NBG");
-        allowListRedemption[minter] = true;
-        totalSupply = totalSupply + 1;
-        ownedNFTs[minter].push(totalSupply - 1);
-        _mint(minter, totalSupply - 1);
+        require(tx.origin == msg.sender, "NSCM");
+        if (_isRebase) {
+            require(!REBASERedemption[minter], "TMG");
+            require(!EXPANSIONPAKRedemption[minter], "TMG");
+            require(rebasedGhouls + 3 <= maxRebasedGhouls, "NEG");
+            bytes32 leaf = keccak256(abi.encodePacked(minter));
+            bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, SUMMONER_LIST, leaf);
+            require(isLeaf, "NBG");
+            REBASERedemption[minter] = true;
+            EXPANSIONPAKRedemption[minter] = true;
+            totalSupply = totalSupply + 3;
+            rebasedGhouls += 3;
+            _mint(minter, totalSupply - 3);
+            _mint(minter, totalSupply - 2);
+            _mint(minter, totalSupply - 1);
+        }
+        if (!isHordeReleased && !_isRebase) {
+                require(!EXPANSIONPAKRedemption[minter], "TMG");
+                require(summonedGhouls + 1 + maxRebasedGhouls <= maxGhouls, "NEG");
+                bytes32 leaf = keccak256(abi.encodePacked(minter));
+                bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, EXPANSION_PAK, leaf);
+                require(isLeaf, "NBG");
+                EXPANSIONPAKRedemption[minter] = true;
+                totalSupply = totalSupply + 1;
+                summonedGhouls += 1;
+                _mint(minter, totalSupply - 1);
+        }
+        if (isHordeReleased) {
+            require(summonedGhouls + 1 + maxRebasedGhouls <= maxGhouls, "NEG");
+            summonedGhouls += 1;
+            totalSupply = totalSupply + 1;
+            _mint(minter, totalSupply - 1);
+        }
         if(totalSupply >= (lastTokenRevealed + REVEAL_BATCH_SIZE)) {
             uint256 seed;
             unchecked {
@@ -104,7 +136,6 @@ contract BasedGhoulsv2 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUp
             setBatchSeed(seed);
         }
     }
-
 
     function tokenURI(uint256 id) public view override returns (string memory) {
         if(id >= lastTokenRevealed){
@@ -126,31 +157,12 @@ contract BasedGhoulsv2 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUp
     bool public isHordeReleased;
 
     function insertExpansionPack(bytes32 _newMerkle) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bytes32) {
-        MERKLE_ROOT = _newMerkle;   
-        return MERKLE_ROOT;
+        EXPANSION_PAK = _newMerkle;   
+        return EXPANSION_PAK;
     }
 
     function releaseTheHorde (bool _isHordeReleased) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
         isHordeReleased = _isHordeReleased;
         return isHordeReleased;
-    }
-
-
-    function summon() public {
-        require(isMintable, "NYM");
-        require(totalSupply < maxGhouls, "OOG");
-        require(isHordeReleased, "HNR");
-        require(tx.origin == msg.sender, "NSCM");
-        address minter = msg.sender;
-        totalSupply = totalSupply + 1;
-        ownedNFTs[minter].push(totalSupply - 1);
-        _mint(minter, totalSupply - 1);
-        if(totalSupply >= (lastTokenRevealed + REVEAL_BATCH_SIZE)) {
-            uint256 seed;
-            unchecked {
-                seed = uint256(blockhash(block.number - 69)) * uint256(block.timestamp % 69);
-            }
-            setBatchSeed(seed);
-        }
     }
 }
