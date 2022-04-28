@@ -7,7 +7,7 @@ async function main() {
     }
     )
     const addresses = files.map(file => {
-        return `"${file[0].returnValues.to}"`;
+        return {address: `"${file[0].returnValues.to}"`, amount: 1};
     })
     console.log(addresses[0]);
     
