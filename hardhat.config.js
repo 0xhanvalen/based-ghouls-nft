@@ -67,5 +67,8 @@ module.exports = {
     currency: "usd",
     token: "eth",
     gasPrice: 37
+  },
+  mocha: {
+    timeout: 600000
   }
 };

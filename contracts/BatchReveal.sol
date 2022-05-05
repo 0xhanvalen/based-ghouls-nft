@@ -4,8 +4,15 @@ pragma solidity ^0.8.0;
 /*
   See ../../randomness.md
 */
-abstract contract BatchReveal {
-    uint constant public TOKEN_LIMIT = 6666;
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+
+
+import "hardhat/console.sol";
+
+
+contract BatchReveal is AccessControlUpgradeable {
+
+    uint constant public TOKEN_LIMIT = 264;
     uint constant public REVEAL_BATCH_SIZE = 66;
     mapping(uint => uint) public batchToSeed;
     uint public lastTokenRevealed;
@@ -13,6 +20,12 @@ abstract contract BatchReveal {
     struct Range{
         int128 start;
         int128 end;
+    }
+
+    function initialize() initializer public virtual {
+        lastTokenRevealed = 1;
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        grantRole(DEFAULT_ADMIN_ROLE, 0x98CCf605c43A0bF9D6795C3cf3b5fEd836330511);
     }
 
     // Forked from openzeppelin
@@ -69,10 +82,14 @@ abstract contract BatchReveal {
         return ranges;
     }
 
-    function getShuffledTokenId(uint startId) view internal returns (uint) {
-        uint batch = startId/REVEAL_BATCH_SIZE;
+    function getShuffledTokenId(uint startId) view public onlyRole(DEFAULT_ADMIN_ROLE) returns (uint) {
+        uint batch = (startId/REVEAL_BATCH_SIZE) + 1;
+        console.log(batch, "<- batch");
         Range[RANGE_LENGTH] memory ranges = buildJumps(batch);
         uint positionsToMove = (startId % REVEAL_BATCH_SIZE) + batchToSeed[batch];
+        console.log(batchToSeed[batch], "<- BATCH TO SEED");
+        console.log(positionsToMove, "<- Positions To Move!");
+        console.log(getFreeTokenId(positionsToMove, ranges), "<- New Index!");
         return getFreeTokenId(positionsToMove, ranges);
     }
 
@@ -104,7 +121,7 @@ abstract contract BatchReveal {
         return uint(uint128(id + positionsToMove));
     }
 
-    function setBatchSeed(uint randomness) internal {
+    function setBatchSeed(uint randomness) public onlyRole(DEFAULT_ADMIN_ROLE) {
         uint batchNumber;
         unchecked {
             batchNumber = lastTokenRevealed/REVEAL_BATCH_SIZE;
@@ -112,5 +129,10 @@ abstract contract BatchReveal {
         }
         // not perfectly random since the folding doesn't match bounds perfectly, but difference is small
         batchToSeed[batchNumber] = randomness % (TOKEN_LIMIT - (batchNumber*REVEAL_BATCH_SIZE));
+        console.log("I HAVE BATCH SEEDED ", randomness);
+    }
+
+    function setLastTokenRevealed(uint _index) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        lastTokenRevealed = _index;
     }
 }
