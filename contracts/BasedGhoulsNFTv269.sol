@@ -38,6 +38,8 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
     bytes32 SUMMONER_LIST;
 
     address shufflerAddress;
+
+    bool isHordeReleased;
     }
 
     GhoulData ghouldata;
@@ -80,7 +82,6 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
     }
 
     function setBatchSeed(uint _randomness) private {
-        console.log("I'M BATCH SEEDING");
         IBatchReveal(ghouldata.shufflerAddress).setBatchSeed(_randomness);
     }
 
@@ -89,8 +90,20 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
     }
 
     function getShuffledTokenId(uint _startId) view private returns (uint) {
-        console.log("IM SHUFFLING");
         return IBatchReveal(ghouldata.shufflerAddress).getShuffledTokenId(_startId);
+    }
+
+    function insertExpansionPack(bytes32 _newMerkle) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        ghouldata.EXPANSION_PAK = _newMerkle;   
+    }
+
+    function releaseTheHorde(bool _isHordeReleased) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        ghouldata.isHordeReleased = _isHordeReleased;
+    }
+
+    function insertRebasePack(bytes32 _newMerkle, uint16 _maxRebasedGhouls) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        ghouldata.SUMMONER_LIST = _newMerkle;   
+        ghouldata.maxRebasedGhouls = _maxRebasedGhouls;
     }
 
     // u gotta... GOTTA... send the merkleproof in w the mint request. 
@@ -114,7 +127,7 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
             _mint(minter, ghouldata.totalSupply - 2);
             _mint(minter, ghouldata.totalSupply - 1);
         }
-        if (!isHordeReleased && !_isRebase) {
+        if (!ghouldata.isHordeReleased && !_isRebase) {
                 require(!redemptiondata.EXPANSIONPAKRedemption[minter], "TMG");
                 require(ghouldata.summonedGhouls + 1 + ghouldata.maxRebasedGhouls <= ghouldata.maxGhouls, "NEG");
                 bytes32 leaf = keccak256(abi.encodePacked(minter));
@@ -125,7 +138,7 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
                 ghouldata.summonedGhouls += 1;
                 _mint(minter, ghouldata.totalSupply - 1);
         }
-        if (isHordeReleased) {
+        if (ghouldata.isHordeReleased) {
             require(ghouldata.summonedGhouls + 1 + ghouldata.maxRebasedGhouls <= ghouldata.maxGhouls, "NEG");
             ghouldata.summonedGhouls += 1;
             ghouldata.totalSupply = ghouldata.totalSupply + 1;
@@ -159,20 +172,5 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
             interfaceId == type(IAccessControlUpgradeable).interfaceId ||
             interfaceId == type(IERC2981Upgradeable).interfaceId ||
             super.supportsInterface(interfaceId);
-    }
-
-    bool public isHordeReleased;
-
-    function insertExpansionPack(bytes32 _newMerkle) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        ghouldata.EXPANSION_PAK = _newMerkle;   
-    }
-
-    function releaseTheHorde(bool _isHordeReleased) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        isHordeReleased = _isHordeReleased;
-    }
-
-    function insertRebasePack(bytes32 _newMerkle, uint16 _maxRebasedGhouls) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        ghouldata.SUMMONER_LIST = _newMerkle;   
-        ghouldata.maxRebasedGhouls = _maxRebasedGhouls;
     }
 }
