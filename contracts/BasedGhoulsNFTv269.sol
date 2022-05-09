@@ -16,118 +16,126 @@ import "hardhat/console.sol";
 contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControlUpgradeable {
     using StringsUpgradeable for uint256;
 
-    mapping (address => bool) public EXPANSIONPAKRedemption;
-    mapping (address => bool) public REBASERedemption;
+    struct RedemptionData {
+    mapping (address => bool) EXPANSIONPAKRedemption;
+    mapping (address => bool) REBASERedemption;
+    }
 
-    bool public isMintable;
-    uint16 public totalSupply;
-    uint16 public maxGhouls;
-    uint16 public summonedGhouls;
-    uint16 public rebasedGhouls;
-    uint16 public maxRebasedGhouls;
-    uint16 public lastTokenRevealed;
-    uint16 public TOKEN_LIMIT;
-    uint16 public REVEAL_BATCH_SIZE;
+    struct GhoulData {
+    bool isMintable;
+    uint16 totalSupply;
+    uint16 maxGhouls;
+    uint16 summonedGhouls;
+    uint16 rebasedGhouls;
+    uint16 maxRebasedGhouls;
+    uint16 lastTokenRevealed;
+    uint16 TOKEN_LIMIT;
+    uint16 REVEAL_BATCH_SIZE;
+    string baseURI;
+    string unrevealedURI;
 
-    string public baseURI;
-    string public unrevealedURI;
+    bytes32 EXPANSION_PAK;
+    bytes32 SUMMONER_LIST;
 
-    bytes32 public EXPANSION_PAK;
-    bytes32 public SUMMONER_LIST;
+    address shufflerAddress;
+    }
 
-    address public shufflerAddress;
+    GhoulData ghouldata;
+    RedemptionData redemptiondata;
+
+
 
     function initialize() initializer public {
         __ERC721_init("Based Ghouls", "GHLS");
-        maxGhouls = 6666;
-        maxRebasedGhouls = 2397;
-        baseURI = "https://ghlstest.s3.amazonaws.com/json/";
-        unrevealedURI = "https://ghlsprereveal.s3.amazonaws.com/json/Shallow_Grave.json";
-        EXPANSION_PAK = 0xeaad81dc1fbbd6832eacc1a6445f0220959cd68597f0e7a6b1270b2bb16cf31d;
-        SUMMONER_LIST = 0x10baa072ec97e81b0f088ddba9053c59cef96ef754e8ab542304e13c9c7b360e;
-        lastTokenRevealed = 1;
-        TOKEN_LIMIT = 264;
-        REVEAL_BATCH_SIZE = 66;
-        isMintable = false;
-        totalSupply = 0;
+        ghouldata.maxGhouls = 6666;
+        ghouldata.maxRebasedGhouls = 2397;
+        ghouldata.baseURI = "https://ghlstest.s3.amazonaws.com/json/";
+        ghouldata.unrevealedURI = "https://ghlsprereveal.s3.amazonaws.com/json/Shallow_Grave.json";
+        ghouldata.EXPANSION_PAK = 0xeaad81dc1fbbd6832eacc1a6445f0220959cd68597f0e7a6b1270b2bb16cf31d;
+        ghouldata.SUMMONER_LIST = 0x10baa072ec97e81b0f088ddba9053c59cef96ef754e8ab542304e13c9c7b360e;
+        ghouldata.lastTokenRevealed = 1;
+        ghouldata.TOKEN_LIMIT = 264;
+        ghouldata.REVEAL_BATCH_SIZE = 66;
+        ghouldata.isMintable = false;
+        ghouldata.totalSupply = 0;
         _setDefaultRoyalty(0x475dcAA08A69fA462790F42DB4D3bbA1563cb474, 690);
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         grantRole(DEFAULT_ADMIN_ROLE, 0x98CCf605c43A0bF9D6795C3cf3b5fEd836330511);
     }
 
     function updateBaseURI(string calldata _newURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        baseURI = _newURI;
+        ghouldata.baseURI = _newURI;
     }
 
     function updateUnrevealedURI(string calldata _newURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        unrevealedURI = _newURI;
+        ghouldata.unrevealedURI = _newURI;
     }
  
     function setMintability(bool _mintability) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        isMintable = _mintability;
+        ghouldata.isMintable = _mintability;
     }
 
     function setShufflerAddress(address _address) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        shufflerAddress = _address;
+        ghouldata.shufflerAddress = _address;
     }
 
     function setBatchSeed(uint _randomness) private {
         console.log("I'M BATCH SEEDING");
-        IBatchReveal(shufflerAddress).setBatchSeed(_randomness);
+        IBatchReveal(ghouldata.shufflerAddress).setBatchSeed(_randomness);
     }
 
     function setLastTokenRevealed(uint16 _index) private {
-        IBatchReveal(shufflerAddress).setLastTokenRevealed(_index);
+        IBatchReveal(ghouldata.shufflerAddress).setLastTokenRevealed(_index);
     }
 
     function getShuffledTokenId(uint _startId) view private returns (uint) {
         console.log("IM SHUFFLING");
-        return IBatchReveal(shufflerAddress).getShuffledTokenId(_startId);
+        return IBatchReveal(ghouldata.shufflerAddress).getShuffledTokenId(_startId);
     }
 
     // u gotta... GOTTA... send the merkleproof in w the mint request. 
     function summon(bytes32[] calldata _merkleProof, bool _isRebase) public {
-        require(isMintable, "NYM");
-        require(totalSupply <= maxGhouls, "OOG");
+        require(ghouldata.isMintable, "NYM");
+        require(ghouldata.totalSupply <= ghouldata.maxGhouls, "OOG");
         address minter = msg.sender;
         require(tx.origin == msg.sender, "NSCM");
         if (_isRebase) {
-            require(!REBASERedemption[minter], "TMG");
-            require(!EXPANSIONPAKRedemption[minter], "TMG");
-            require(rebasedGhouls + 3 <= maxRebasedGhouls, "NEG");
+            require(!redemptiondata.REBASERedemption[minter], "TMG");
+            require(!redemptiondata.EXPANSIONPAKRedemption[minter], "TMG");
+            require(ghouldata.rebasedGhouls + 3 <= ghouldata.maxRebasedGhouls, "NEG");
             bytes32 leaf = keccak256(abi.encodePacked(minter));
-            bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, SUMMONER_LIST, leaf);
+            bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, ghouldata.SUMMONER_LIST, leaf);
             require(isLeaf, "NBG");
-            REBASERedemption[minter] = true;
-            EXPANSIONPAKRedemption[minter] = true;
-            totalSupply = totalSupply + 3;
-            rebasedGhouls += 3;
-            _mint(minter, totalSupply - 3);
-            _mint(minter, totalSupply - 2);
-            _mint(minter, totalSupply - 1);
+            redemptiondata.REBASERedemption[minter] = true;
+            redemptiondata.EXPANSIONPAKRedemption[minter] = true;
+            ghouldata.totalSupply = ghouldata.totalSupply + 3;
+            ghouldata.rebasedGhouls += 3;
+            _mint(minter, ghouldata.totalSupply - 3);
+            _mint(minter, ghouldata.totalSupply - 2);
+            _mint(minter, ghouldata.totalSupply - 1);
         }
         if (!isHordeReleased && !_isRebase) {
-                require(!EXPANSIONPAKRedemption[minter], "TMG");
-                require(summonedGhouls + 1 + maxRebasedGhouls <= maxGhouls, "NEG");
+                require(!redemptiondata.EXPANSIONPAKRedemption[minter], "TMG");
+                require(ghouldata.summonedGhouls + 1 + ghouldata.maxRebasedGhouls <= ghouldata.maxGhouls, "NEG");
                 bytes32 leaf = keccak256(abi.encodePacked(minter));
-                bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, EXPANSION_PAK, leaf);
+                bool isLeaf = MerkleProofUpgradeable.verify(_merkleProof, ghouldata.EXPANSION_PAK, leaf);
                 require(isLeaf, "NBG");
-                EXPANSIONPAKRedemption[minter] = true;
-                totalSupply = totalSupply + 1;
-                summonedGhouls += 1;
-                _mint(minter, totalSupply - 1);
+                redemptiondata.EXPANSIONPAKRedemption[minter] = true;
+                ghouldata.totalSupply = ghouldata.totalSupply + 1;
+                ghouldata.summonedGhouls += 1;
+                _mint(minter, ghouldata.totalSupply - 1);
         }
         if (isHordeReleased) {
-            // require(summonedGhouls + 1 + maxRebasedGhouls <= maxGhouls, "NEG");
-            summonedGhouls += 1;
-            totalSupply = totalSupply + 1;
-            _mint(minter, totalSupply - 1);
+            require(ghouldata.summonedGhouls + 1 + ghouldata.maxRebasedGhouls <= ghouldata.maxGhouls, "NEG");
+            ghouldata.summonedGhouls += 1;
+            ghouldata.totalSupply = ghouldata.totalSupply + 1;
+            _mint(minter, ghouldata.totalSupply - 1);
         }
-        console.log("LAST TOKEN Minted: ", totalSupply);
-        console.log("LAST TOKEN REVEALED: ", lastTokenRevealed);
-        if(totalSupply >= (lastTokenRevealed + REVEAL_BATCH_SIZE)) {
-            lastTokenRevealed = totalSupply;
-            setLastTokenRevealed(totalSupply);
+        console.log("LAST TOKEN Minted: ", ghouldata.totalSupply);
+        console.log("LAST TOKEN REVEALED: ", ghouldata.lastTokenRevealed);
+        if(ghouldata.totalSupply >= (ghouldata.lastTokenRevealed + ghouldata.REVEAL_BATCH_SIZE)) {
+            ghouldata.lastTokenRevealed = ghouldata.totalSupply;
+            setLastTokenRevealed(ghouldata.totalSupply);
             uint256 seed;
             unchecked {
                 seed = uint256(blockhash(block.number - 69)) * uint256(block.timestamp % 69);
@@ -137,10 +145,10 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
     }
 
     function tokenURI(uint256 id) public view override returns (string memory) {
-        if(id >= lastTokenRevealed){
-            return unrevealedURI;
+        if(id >= ghouldata.lastTokenRevealed){
+            return ghouldata.unrevealedURI;
         } else {
-             return string(abi.encodePacked(baseURI, getShuffledTokenId(id).toString(), ".json"));
+             return string(abi.encodePacked(ghouldata.baseURI, getShuffledTokenId(id).toString(), ".json"));
         }
     }
 
@@ -156,7 +164,7 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
     bool public isHordeReleased;
 
     function insertExpansionPack(bytes32 _newMerkle) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        EXPANSION_PAK = _newMerkle;   
+        ghouldata.EXPANSION_PAK = _newMerkle;   
     }
 
     function releaseTheHorde(bool _isHordeReleased) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -164,7 +172,7 @@ contract BasedGhoulsv269 is ERC721Upgradeable, ERC2981Upgradeable, AccessControl
     }
 
     function insertRebasePack(bytes32 _newMerkle, uint16 _maxRebasedGhouls) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        SUMMONER_LIST = _newMerkle;   
-        maxRebasedGhouls = _maxRebasedGhouls;
+        ghouldata.SUMMONER_LIST = _newMerkle;   
+        ghouldata.maxRebasedGhouls = _maxRebasedGhouls;
     }
 }
